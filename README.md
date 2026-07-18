@@ -2,42 +2,41 @@
 
 Repositorio del trabajo **Predicción de reapertura de bugs en proyectos de desarrollo de software**.
 
-El objetivo es estimar, utilizando únicamente información disponible hasta la primera resolución válida de un bug, el riesgo de que el ticket sea reabierto dentro de los 180 días posteriores.
+El objetivo es estimar, a partir de la información disponible hasta la primera resolución válida de un bug, el riesgo de que el ticket sea reabierto dentro de los 180 días posteriores.
 
-El análisis utiliza proyectos de código abierto gestionados con Jira e incluidos en el dataset TAWOS. Se comparan una regresión logística, Random Forest y LightGBM mediante una evaluación temporal orientada a evitar fuga de información.
+El análisis utiliza proyectos de código abierto gestionados con Jira e incluidos en el dataset TAWOS. Se comparan una regresión logística, Random Forest y LightGBM mediante una evaluación temporal diseñada para evitar fuga de información.
 
 ## Pregunta de investigación
 
 > ¿En qué medida es posible estimar, utilizando únicamente la información disponible hasta el momento de la primera resolución válida de un bug, el riesgo de que sea reabierto dentro de los 180 días posteriores?
 
-## Diseño del análisis
+## Metodología
 
-El procedimiento incluye:
+El flujo de trabajo comprende:
 
 1. reconstrucción de la primera resolución válida a partir del historial de cambios;
 2. normalización de estados según el workflow de cada proyecto;
 3. generación de atributos disponibles hasta la primera resolución;
-4. construcción de un target con horizonte fijo de 180 días;
+4. construcción de la variable objetivo con un horizonte fijo de 180 días;
 5. exclusión de observaciones sin seguimiento completo;
-6. validación temporal expansiva con una brecha de 180 días;
-7. comparación de regresión logística, Random Forest y LightGBM;
+6. partición y validación temporal expansiva con una brecha de 180 días;
+7. entrenamiento de regresión logística, Random Forest y LightGBM;
 8. evaluación mediante PR-AUC, ROC-AUC, precision, recall, F1, balanced accuracy y lift;
-9. análisis de escenarios operativos y heterogeneidad entre proyectos.
+9. análisis de escenarios operativos y de heterogeneidad entre proyectos.
 
 ## Resultados principales
 
 La cohorte final contiene 66.865 bugs, de los cuales 7.094 fueron reabiertos dentro de los 180 días posteriores a su primera resolución.
 
-LightGBM obtuvo el mejor desempeño en el conjunto temporal de prueba:
+En el conjunto temporal de prueba, LightGBM obtuvo el mejor desempeño:
 
 - PR-AUC: 0,137;
 - ROC-AUC: 0,719;
-- prevalencia positiva en prueba: 0,055;
-- lift aproximado de PR-AUC respecto de la referencia aleatoria: 2,49.
+- prevalencia positiva: 0,055.
 
-En el escenario que prioriza el 20 % de los bugs con mayor score, el modelo recuperó el 46,06 % de las reaperturas, con una precision de 12,67 % y un lift de 2,30.
+Al priorizar el 20 % de los bugs con mayor score, el modelo recuperó el 46,06 % de las reaperturas, con una precision de 12,67 % y un lift de 2,30.
 
-Los scores se interpretan como medidas relativas de riesgo y no como probabilidades calibradas. El modelo se propone como una herramienta de apoyo para priorizar revisiones, no como un mecanismo de decisión automática.
+Los scores se interpretan como medidas relativas de riesgo. El modelo se propone como herramienta de apoyo para priorizar revisiones y pruebas adicionales, no como mecanismo de decisión automática.
 
 ## Estructura del repositorio
 
@@ -50,25 +49,27 @@ bug-reopen-prediction/
 ├── database/
 │   ├── tawos_auxiliary_tables.sql
 │   └── README.md
-├── output/                  # generado localmente; no se versiona
 ├── README.md
 ├── requirements.txt
+├── requirements-lock.txt
 ├── .env.example
 └── .gitignore
 ```
 
-## Requisitos del sistema
+La carpeta `output/` se crea automáticamente durante la ejecución y no se versiona.
 
-El análisis fue ejecutado con:
+## Requisitos
 
-- Python 3.12.13;
-- MySQL Server 8.x;
-- JupyterLab;
-- las bibliotecas declaradas en `requirements.txt`.
+Para reproducir el análisis se necesita:
 
-También se requiere Git para clonar el repositorio.
+- Git;
+- Python 3.12;
+- MySQL Server 8 o superior;
+- acceso local a la base TAWOS.
 
-## Instalación local
+El entorno de referencia fue ejecutado con Python 3.12.13 y MySQL Server 9.2.0.
+
+## Instalación
 
 ### 1. Clonar el repositorio
 
@@ -79,61 +80,93 @@ cd bug-reopen-prediction
 
 ### 2. Crear un entorno virtual
 
-En Windows PowerShell:
+#### Windows PowerShell
 
 ```powershell
 py -3.12 -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -r requirements.txt
-python -m ipykernel install --user --name bug-reopen-prediction --display-name "Python (bug-reopen-prediction)"
 ```
 
-En Linux o macOS:
+#### Linux o macOS
 
 ```bash
 python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+```
+
+### 3. Instalar el entorno utilizado en el análisis
+
+Para reproducir las versiones exactas del entorno:
+
+```bash
+python -m pip install -r requirements-lock.txt
+```
+
+Registrar el entorno como kernel de Jupyter:
+
+```bash
 python -m ipykernel install --user --name bug-reopen-prediction --display-name "Python (bug-reopen-prediction)"
 ```
 
-### 3. Configurar MySQL
+`requirements-lock.txt` contiene las versiones exactas utilizadas en la ejecución de referencia.
 
-La base completa de TAWOS no se incluye en el repositorio debido a su tamaño.
+`requirements.txt` contiene únicamente las dependencias principales con rangos de versiones compatibles. Se conserva como referencia para mantenimiento o actualización del proyecto, pero la reproducción del trabajo debe realizarse con `requirements-lock.txt`.
 
-Debe descargarse desde una fuente oficial:
+## Preparación de la base de datos
 
-- https://rdr.ucl.ac.uk/articles/dataset/The_TAWOS_dataset/21308124
-- https://solar.cs.ucl.ac.uk/os/tawos
-- https://github.com/SOLAR-group/TAWOS
+### 1. Descargar TAWOS
 
-Una vez importada la base en MySQL, deben agregarse las tablas auxiliares incluidas en:
+La base completa no se incluye en este repositorio debido a su tamaño. Puede obtenerse desde las fuentes oficiales:
+
+- [TAWOS en UCL Research Data Repository](https://rdr.ucl.ac.uk/articles/dataset/The_TAWOS_dataset/21308124)
+- [Sitio del proyecto TAWOS](https://solar.cs.ucl.ac.uk/os/tawos)
+- [Repositorio oficial de TAWOS](https://github.com/SOLAR-group/TAWOS)
+
+### 2. Importar TAWOS en MySQL
+
+Importar el dump descargado en una base local. El nombre utilizado por defecto en este proyecto es:
+
+```text
+tawos
+```
+
+Las instrucciones detalladas se encuentran en [`database/README.md`](database/README.md).
+
+### 3. Cargar las tablas auxiliares
+
+Después de importar TAWOS, ejecutar sobre la misma base:
 
 ```text
 database/tawos_auxiliary_tables.sql
 ```
 
-Las instrucciones detalladas se encuentran en [`database/README.md`](database/README.md).
+El archivo incorpora las tablas:
 
-### 4. Configurar las credenciales
+- `analysis_project_scope`;
+- `status_group`;
+- `status_map_project`.
 
-Copiar el archivo de ejemplo:
+Estas tablas documentan los proyectos seleccionados y la normalización de los estados utilizada para reconstruir resoluciones y reaperturas.
 
-En Windows PowerShell:
+## Configuración de la conexión
+
+Copiar el archivo de ejemplo.
+
+### Windows PowerShell
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-En Linux o macOS:
+### Linux o macOS
 
 ```bash
 cp .env.example .env
 ```
 
-Editar `.env` con los datos de la instancia local:
+Editar únicamente el archivo `.env` con las credenciales de la base local:
 
 ```env
 DB_HOST=localhost
@@ -143,36 +176,68 @@ DB_USER=usuario_mysql
 DB_PASSWORD=contraseña_mysql
 ```
 
-El archivo `.env` contiene credenciales y no debe incorporarse al repositorio.
+El archivo `.env` no se versiona.
 
-### 5. Iniciar JupyterLab
+No es necesario modificar rutas ni código dentro de los notebooks.
 
-Ejecutar JupyterLab desde la raíz del repositorio:
+## Ejecución
+
+Desde la raíz del repositorio, con el entorno virtual activado:
 
 ```bash
 jupyter lab
 ```
 
-Abrir los notebooks con el kernel `Python (bug-reopen-prediction)`.
+Seleccionar el kernel:
 
-## Orden de ejecución
+```text
+Python (bug-reopen-prediction)
+```
 
-Los notebooks deben ejecutarse en este orden:
+Ejecutar los notebooks en este orden:
 
-### 1. `notebooks/01_build_analytical_dataset.ipynb`
+### 1. Construcción del dataset analítico
 
-Construye el dataset analítico desde MySQL. Entre otras tareas:
+```text
+notebooks/01_build_analytical_dataset.ipynb
+```
 
+Este notebook:
+
+- se conecta a MySQL;
 - valida la existencia de las tablas requeridas;
-- selecciona los proyectos;
-- normaliza los estados;
 - identifica la primera resolución válida;
-- reconstruye atributos disponibles hasta esa fecha;
+- reconstruye los atributos disponibles hasta esa fecha;
 - identifica la primera reapertura posterior;
-- genera atributos temporales e históricos;
-- exporta los datasets analíticos y las auditorías.
+- genera los datasets analíticos.
 
-Principales archivos generados:
+### 2. Modelado temporal global
+
+```text
+notebooks/02_global_temporal_modeling.ipynb
+```
+
+Este notebook:
+
+- construye el target a 180 días;
+- aplica la cohorte con seguimiento completo;
+- realiza el análisis exploratorio;
+- genera la partición temporal;
+- entrena y optimiza los modelos;
+- evalúa el conjunto temporal de prueba;
+- exporta métricas y resultados.
+
+### 3. Modelos específicos por proyecto
+
+```text
+notebooks/03_project_specific_models.ipynb
+```
+
+Este notebook entrena modelos separados por proyecto y compara su desempeño con el modelo global.
+
+## Archivos generados
+
+El primer notebook crea, entre otros:
 
 ```text
 output/bug_reopen_dataset_full.parquet
@@ -181,37 +246,17 @@ output/bug_reopen_modeling_dataset_with_users.parquet
 output/bug_reopen_text_dataset.parquet
 ```
 
-También se generan versiones CSV y archivos de auditoría.
-
-### 2. `notebooks/02_global_temporal_modeling.ipynb`
-
-Realiza:
-
-- construcción del target con horizonte de 180 días;
-- exclusión de bugs sin seguimiento completo;
-- análisis exploratorio;
-- partición temporal;
-- validación temporal expansiva;
-- entrenamiento de regresión logística, Random Forest y LightGBM;
-- optimización con Optuna;
-- selección de umbrales y escenarios por capacidad;
-- evaluación final y exportación de resultados.
-
-Los resultados se guardan en:
+Los notebooks de modelado almacenan sus resultados en:
 
 ```text
 output/modeling_results/
 ```
 
-### 3. `notebooks/03_project_specific_models.ipynb`
-
-Entrena y evalúa modelos separados por proyecto y compara su desempeño con el modelo global.
-
-Debe ejecutarse después del notebook principal porque utiliza datasets y resultados generados previamente.
+La carpeta `output/` está excluida del repositorio porque contiene datos y artefactos generados durante la ejecución.
 
 ## Controles de reproducción
 
-Después de ejecutar el primer notebook deberían obtenerse, entre otros, los siguientes valores:
+Al finalizar la construcción del dataset deberían obtenerse los siguientes valores:
 
 | Control | Valor esperado |
 |---|---:|
@@ -230,57 +275,18 @@ Después de aplicar el horizonte de 180 días:
 | No reabiertos dentro de 180 días | 59.771 |
 | Prevalencia positiva | 10,61 % |
 
-Pequeñas diferencias en tiempos de ejecución son esperables. Los conteos y la composición de la cohorte no deberían variar cuando se utiliza la misma versión de TAWOS y las mismas tablas auxiliares.
+Diferencias en estos conteos pueden indicar que se utilizó otra versión de TAWOS, que la importación está incompleta o que no se cargaron correctamente las tablas auxiliares.
 
-## Configuración de rutas
+## Datos no incluidos
 
-Las versiones iniciales de los notebooks fueron ejecutadas en un entorno cuyo directorio de trabajo era `/app`. Para una ejecución local sin Docker, los notebooks deben utilizar la raíz del repositorio como directorio base.
-
-La celda de configuración del primer notebook debe definir las rutas de manera portable, por ejemplo:
-
-```python
-from pathlib import Path
-
-PROJECT_ROOT = Path.cwd().resolve()
-if PROJECT_ROOT.name == "notebooks":
-    PROJECT_ROOT = PROJECT_ROOT.parent
-
-OUTPUT_DIR = PROJECT_ROOT / "output"
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
-load_dotenv(PROJECT_ROOT / ".env")
-```
-
-Los notebooks de modelado deben buscar los datos en:
-
-```python
-PROJECT_ROOT / "output"
-```
-
-Antes de considerar finalizada la publicación del repositorio, se recomienda aplicar este cambio directamente en los tres notebooks para que ninguna ejecución dependa de `/app` ni de `/mnt/data`.
-
-## Datos y archivos no versionados
-
-No se incluyen:
+El repositorio no contiene:
 
 - el dump completo de TAWOS;
-- los datasets analíticos generados;
-- estudios Optuna;
+- credenciales de acceso;
+- datasets analíticos generados;
+- estudios de Optuna;
 - modelos entrenados;
-- credenciales;
 - archivos temporales de Jupyter.
-
-Estos elementos deben permanecer excluidos mediante `.gitignore`.
-
-## Reproducibilidad de versiones
-
-`requirements.txt` declara un conjunto compatible de dependencias para Python 3.12. Para registrar las versiones exactas del entorno utilizado en la ejecución final, puede generarse un archivo de bloqueo con:
-
-```bash
-python -m pip freeze > requirements-lock.txt
-```
-
-Ese archivo debe generarse después de ejecutar satisfactoriamente los tres notebooks y puede incorporarse al repositorio junto con `requirements.txt`.
 
 ## Referencia del dataset
 

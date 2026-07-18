@@ -1,7 +1,6 @@
-# Entorno compatible con Python 3.12.
-# Después de ejecutar satisfactoriamente el proyecto, generar
-# requirements-lock.txt con `python -m pip freeze` para registrar
-# las versiones exactas de la corrida final.
+# Dependencias principales compatibles con Python 3.12.
+# Para reproducir exactamente el entorno utilizado, instalar
+# requirements-lock.txt.
 
 numpy>=2.0,<3
 pandas>=2.2,<4
@@ -13,6 +12,6 @@ optuna>=4.0,<5
 SQLAlchemy>=2.0,<3
 PyMySQL>=1.1,<2
 python-dotenv>=1.0,<2
-pyarrow>=17,<24
+pyarrow>=17,<25
 jupyterlab>=4.2,<5
 ipykernel>=6.29,<8
