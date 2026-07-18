@@ -1,0 +1,30 @@
+# Credenciales
+.env
+*.env
+!.env.example
+
+# Entorno virtual
+.venv/
+venv/
+
+# Base completa
+tawos_completa.sql
+tawos_completa.sql.gz
+tawos_completa.zip
+data/raw/
+
+# Datos y resultados generados
+output/
+*.parquet
+*.feather
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.pyc
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
